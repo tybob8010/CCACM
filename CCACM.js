@@ -1,6 +1,6 @@
 /*
     CCACM(Cookie Clicker Auto Closing MOD)
-    v.1.0.2
+    v.1.0.3_pre
 
     CookieClickerを自動で終了させるMOD。指定時間にセーブしてタブを閉じます。
     (c) 2026 tybob
@@ -16,7 +16,7 @@
         // デフォルト設定
         config: {
             enabled: 1,           // 自動終了機能のON/OFF (1: ON, 0: OFF)
-            targetTime: "",  // 終了を実行する時刻
+            targetTime: "",      // 終了を実行する時刻
             lastExecutedDay: "",  // 二重実行防止用の日付記録
             lastExecutedTime: ""  // 二重実行防止用の時刻記録
         },
@@ -111,27 +111,27 @@
                     this.config.lastExecutedTime === this.config.targetTime) return;
 
                 // 指定時刻に到達した場合の処理
-                if (currentTimeStr === this.config.targetTime) {
+                if (currentTimeStr === this.config.targetTime && this.config.targetTime !== "") {
                     this.config.lastExecutedDay = todayStr;
                     this.config.lastExecutedTime = this.config.targetTime;
 
                     // ゲームをセーブ
                     Game.WriteSave();
                     // 通知を表示
-                    Game.Notify('自動終了', '設定時刻です。終了します。', [23, 11], 3); // パンテオンの効果延長の画像
+                    Game.Notify('自動終了', '設定時刻です。終了します。', [23, 11], 3);
 
-                    // 2秒の猶予を持たせてからタブを閉じる、または空白ページへ移動
+                    // 2秒の猶予を持たせてからタブを閉じる
                     setTimeout(() => {
                         Game.WriteSave();
 
-                        // 1. まずはUserScript側の特権関数を呼ぶ
+                        // 1. まずはUserScript側の特権関数(window.closeCCACM)を呼ぶ
                         if (typeof window.closeCCACM === 'function') {
                             window.closeCCACM();
                         }
 
                         // 2. 0.5秒待っても消えなければ、標準のクローズを試行
                         setTimeout(() => {
-                            window.open('javascript:window.close()', '_self');
+                            window.open('', '_self');
                             window.close();
                         }, 500);
 
@@ -167,7 +167,7 @@
                 const icon = document.createElement('div');
                 icon.id = 'ccacm_icon';
 
-                // マウスホバーでツールチップ（説明文）を表示
+                // マウスホバーでツールチップを表示
                 icon.onmouseover = () => {
                     Game.tooltip.draw(icon, '<div style="padding:8px;width:180px;text-align:center;"><b>CCACM 設定</b><br>クリックで設定画面を開く</div>', 'this');
                 };
@@ -226,19 +226,20 @@
                 btn.innerText = `自動終了: ${this.config.enabled ? 'ON' : 'OFF'}`;
             }
             Game.WriteSave();
-            Game.Notify(`自動終了${this.config.enabled ? '有効' : '無効'}化`, `自動終了が${this.config.enabled ? '有効' : '無効'}になりました。`, [1, 7], 0.75); // 「!」の画像
+            Game.Notify(`自動終了${this.config.enabled ? '有効' : '無効'}化`, `自動終了が${this.config.enabled ? '有効' : '無効'}になりました。`, [1, 7], 0.75);
         },
 
         // 設定時刻を更新する関数
         updateTime: function(val) {
             if (!val) return;
             this.config.targetTime = val;
-            Game.Notify('時刻保存', '終了時刻を ' + val + ' にセットしました。', [8, 35], 2); // タイムマシンの天界アプグレの画像
+            Game.Notify('時刻保存', '終了時刻を ' + val + ' にセットしました。', [8, 35], 2);
             Game.WriteSave();
         },
 
         // ゲームのセーブデータへの書き出し
         save: function() { return JSON.stringify(this.config); },
+
         // ゲームのセーブデータからの読み込み
         load: function(str) {
             if (str) {
@@ -248,13 +249,9 @@
                 } catch(e) {}
             }
         }
-    };
+    }; // CCACM オブジェクト終了
 
-    // Gameオブジェクトが利用可能になるまで待機してModを登録
-    // ... (load関数の終わりなど)
-    };
-
-    // --- ここから書き換え ---
+    // --- Mod登録ロジック ---
     const registerMod = () => {
         // GameとGame.readyに加えて、Mod登録に必要なメソッドがあるか確認
         if (typeof Game !== 'undefined' && Game.ready && Game.registerMod) {
@@ -268,6 +265,5 @@
 
     // 実行開始
     registerMod();
-    // --- ここまで ---
 
-})(); // ファイル自体の閉じカッコ
+})();
