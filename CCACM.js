@@ -251,10 +251,23 @@
     };
 
     // Gameオブジェクトが利用可能になるまで待機してModを登録
-    const registerLoop = setInterval(() => {
-        if (typeof Game !== 'undefined' && Game.ready) {
+    // ... (load関数の終わりなど)
+    };
+
+    // --- ここから書き換え ---
+    const registerMod = () => {
+        // GameとGame.readyに加えて、Mod登録に必要なメソッドがあるか確認
+        if (typeof Game !== 'undefined' && Game.ready && Game.registerMod) {
+            console.log("CCACM: Game ready. Registering Mod...");
             Game.registerMod(CCACM.name, CCACM);
-            clearInterval(registerLoop);
+        } else {
+            // 準備ができるまで500msごとに再試行
+            setTimeout(registerMod, 500);
         }
-    }, 1000);
-})();
+    };
+
+    // 実行開始
+    registerMod();
+    // --- ここまで ---
+
+})(); // ファイル自体の閉じカッコ
