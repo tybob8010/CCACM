@@ -10,71 +10,57 @@
 (function() {
     'use strict';
 
-    // メインオブジェクト: CCACM (Cookie Clicker Auto Closing Mod)
     const CCACM = {
         name: 'CCACM',
-        // デフォルト設定
         config: {
-            enabled: 1,           // 自動終了機能のON/OFF (1: ON, 0: OFF)
-            targetTime: "",      // 終了を実行する時刻
-            lastExecutedDay: "",  // 二重実行防止用の日付記録
-            lastExecutedTime: ""  // 二重実行防止用の時刻記録
+            enabled: 1,
+            targetTime: "",
+            lastExecutedDay: "",
+            lastExecutedTime: ""
         },
 
-        // Modの初期化処理
         init: function() {
-            // スタイルシートの生成と追加
             const style = document.createElement('style');
             style.innerHTML = `
-                /* アイコンの揺れアニメーション（左右・極端） */
                 @keyframes ccacmX_Extreme { from { left: -5px; } to { left: 5px; } }
-                /* アイコンの跳ねアニメーション（上下・鋭い） */
                 @keyframes ccacmY_Extreme { from { transform: translateY(0px); } to { transform: translateY(-7px); } }
-                /* 背後Shineの回転アニメーション */
                 @keyframes ccacmRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-                /* 歯車アイコンのベースコンテナ */
                 .ccacm-base {
                     position: absolute !important;
-                    bottom: 50px !important;    /* 下からの高さ位置 */
-                    right: 5px;                 /* 左セクション(sectionLeft)の右端からの距離 */
+                    bottom: 50px !important;
+                    right: 5px;
                     width: 48px;
                     height: 48px;
-                    z-index: 1000000;           /* 他の要素より手前に表示 */
-                    pointer-events: none;       /* 背後の要素へのクリックを邪魔しない */
+                    z-index: 1000000;
+                    pointer-events: none;
                 }
 
-                /* アニメーションを適用するラッパー */
                 .ccacm-icon-shaker {
                     position: absolute;
                     width: 48px;
                     height: 48px;
                     z-index: 10;
-                    animation:
-                        ccacmX_Extreme 0.6s infinite alternate ease-in-out,
-                        ccacmY_Extreme 0.3s infinite alternate ease-in-out;
+                    animation: ccacmX_Extreme 0.6s infinite alternate ease-in-out, ccacmY_Extreme 0.3s infinite alternate ease-in-out;
                     pointer-events: none;
                 }
 
-                /* 歯車アイコン本体の設定（ゲーム内のicons.pngを利用） */
                 #ccacm_icon {
                     width: 48px !important;
                     height: 48px !important;
-                    background: url(img/icons.png) ${-4 * 48}px ${-0 * 48}px !important; /* 歯車の絵柄を指定[4,0] */
+                    background: url(img/icons.png) ${-4 * 48}px ${-0 * 48}px !important;
                     cursor: pointer !important;
                     filter: drop-shadow(0px 0px 4px #000) !important;
                     position: relative;
                     z-index: 20;
-                    pointer-events: auto;       /* アイコン自体はクリック可能にする */
+                    pointer-events: auto;
                     transition: filter 0.1s ease-out;
                 }
 
-                /* ホバー時に光らせる演出 */
                 #ccacm_icon:hover {
                     filter: drop-shadow(0px 0px 6px rgba(255,255,255,0.7)) brightness(1.0) !important;
                 }
 
-                /* アイコン背後の回転する光(shine.png) */
                 #ccacm_shine {
                     position: absolute;
                     width: 60px;
@@ -84,12 +70,11 @@
                     background: url(img/shine.png) no-repeat center;
                     background-size: contain;
                     z-index: 1;
-                    opacity: 0;                 /* 通常時は透明 */
+                    opacity: 0;
                     animation: ccacmRotate 20s infinite linear;
                     pointer-events: none;
                 }
 
-                /* 歯車にマウスを乗せた時だけ背後のShineを表示（ふわっと浮き出る） */
                 .ccacm-base:has(#ccacm_icon:hover) #ccacm_shine {
                     opacity: 0.6;
                     transition: opacity 0.3s ease-out;
@@ -97,50 +82,43 @@
             `;
             document.head.appendChild(style);
 
-            // 1秒おきに時刻をチェックするループ
             setInterval(() => {
-                if (!this.config.enabled) return; // 無効時は何もしない
+                if (!this.config.enabled || !this.config.targetTime) return;
 
                 const now = new Date();
                 const todayStr = now.toLocaleDateString();
                 const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" +
                                     now.getMinutes().toString().padStart(2, '0');
 
-                // すでに本日、指定時刻に実行済みならスキップ（多重実行防止）
                 if (this.config.lastExecutedDay === todayStr &&
                     this.config.lastExecutedTime === this.config.targetTime) return;
 
-                // 指定時刻に到達した場合の処理
-                if (currentTimeStr === this.config.targetTime && this.config.targetTime !== "") {
+                if (currentTimeStr === this.config.targetTime) {
                     this.config.lastExecutedDay = todayStr;
                     this.config.lastExecutedTime = this.config.targetTime;
 
-                    // ゲームをセーブ
                     Game.WriteSave();
-                    // 通知を表示
                     Game.Notify('自動終了', '設定時刻です。終了します。', [23, 11], 3);
 
-                    // 2秒の猶予を持たせてからタブを閉じる
                     setTimeout(() => {
                         Game.WriteSave();
 
-                        // 1. まずはUserScript側の特権関数(window.closeCCACM)を呼ぶ（Tampermonkey使用時）
+                        // 1. UserScript側の特権関数を呼ぶ
                         if (typeof window.closeCCACM === 'function') {
                             window.closeCCACM();
                         }
 
-                        // 2. 0.5秒待っても消えなければ、標準のクローズを試行
+                        // 2. 0.5秒待って標準のクローズ試行
                         setTimeout(() => {
-                            window.open('', '_self');
                             window.close();
                         }, 500);
 
-                        // 3. それでも消えなければ、最終手段としてリダイレクト
+                        // 3. 3秒待っても閉じなかった場合のみ、about:blankへ（暴発防止）
                         setTimeout(() => {
-                            if (!window.closed) {
+                            if (typeof window !== 'undefined' && !window.closed) {
                                 window.location.replace("about:blank");
                             }
-                        }, 1500);
+                        }, 3000);
                     }, 2000);
                 }
             }, 1000);
@@ -148,51 +126,41 @@
             this.prepareIcon();
         },
 
-        // アイコン要素を生成して画面に配置する関数
         prepareIcon: function() {
-            if (l('ccacm_base')) return; // 二重生成防止
-
-            const target = l('sectionLeft'); // クッキーがある左側の画面エリア
+            if (l('ccacm_base')) return;
+            const target = l('sectionLeft');
             if (target) {
                 const base = document.createElement('div');
                 base.id = 'ccacm_base';
                 base.className = 'ccacm-base';
-
                 const shine = document.createElement('div');
                 shine.id = 'ccacm_shine';
-
                 const shaker = document.createElement('div');
                 shaker.className = 'ccacm-icon-shaker';
-
                 const icon = document.createElement('div');
                 icon.id = 'ccacm_icon';
 
-                // マウスホバーでツールチップを表示
                 icon.onmouseover = () => {
                     Game.tooltip.draw(icon, '<div style="padding:8px;width:180px;text-align:center;"><b>CCACM 設定</b><br>クリックで設定画面を開く</div>', 'this');
                 };
                 icon.onmouseout = () => { Game.tooltip.hide(); };
 
-                // クリックで設定用ダイアログを表示
                 icon.onclick = (e) => {
                     PlaySound('snd/tick.mp3');
                     this.openConfigPrompt();
-                    e.preventDefault();
-                    e.stopPropagation();
+                    e.preventDefault(); e.stopPropagation();
                 };
 
-                // 要素を組み立てて追加
                 shaker.appendChild(icon);
                 base.appendChild(shine);
                 base.appendChild(shaker);
                 target.appendChild(base);
+                console.log("CCACM: Icon ready.");
             } else {
-                // まだゲーム画面がロードされていない場合は1秒待機して再試行
                 setTimeout(() => this.prepareIcon(), 1000);
             }
         },
 
-        // 設定画面（プロンプト）の生成
         openConfigPrompt: function() {
             let content = `
                 <h3>CCACM 自動終了設定</h3>
@@ -216,7 +184,6 @@
             ]);
         },
 
-        // 自動終了の有効/無効を切り替える関数
         toggleEnabled: function() {
             this.config.enabled = !this.config.enabled;
             PlaySound('snd/tick.mp3');
@@ -229,7 +196,6 @@
             Game.Notify(`自動終了${this.config.enabled ? '有効' : '無効'}化`, `自動終了が${this.config.enabled ? '有効' : '無効'}になりました。`, [1, 7], 0.75);
         },
 
-        // 設定時刻を更新する関数
         updateTime: function(val) {
             if (!val) return;
             this.config.targetTime = val;
@@ -237,10 +203,7 @@
             Game.WriteSave();
         },
 
-        // ゲームのセーブデータへの書き出し
         save: function() { return JSON.stringify(this.config); },
-
-        // ゲームのセーブデータからの読み込み
         load: function(str) {
             if (str) {
                 try {
@@ -249,21 +212,16 @@
                 } catch(e) {}
             }
         }
-    }; // CCACM オブジェクト終了
+    };
 
-    // --- Mod登録ロジック ---
     const registerMod = () => {
-        // GameとGame.readyに加えて、Mod登録に必要なメソッドがあるか確認
         if (typeof Game !== 'undefined' && Game.ready && Game.registerMod) {
-            console.log("CCACM: Game ready. Registering Mod...");
             Game.registerMod(CCACM.name, CCACM);
         } else {
-            // 準備ができるまで500msごとに再試行
             setTimeout(registerMod, 500);
         }
     };
 
-    // 実行開始
     registerMod();
 
 })();
